@@ -20,7 +20,7 @@ static NSArray *removeItemsInList(NSArray *list, BOOL isFeed) {
             }
 
             // Suggested stories (carousel)
-            if ([obj isKindOfClass:%c(IGInFeedStoriesTrayModel)]) {
+            if ([obj isKindOfClass:%c(IGInFeedStoriesTrayModel)] || [obj isKindOfClass:%c(_TtC15IGInFeedStories24IGInFeedStoriesTrayModel)]) {
                 NSLog(@"[SCInsta] Hiding suggested stories carousel");
 
                 continue;
@@ -98,6 +98,11 @@ static NSArray *removeItemsInList(NSArray *list, BOOL isFeed) {
         if ([SCIUtils getBoolPref:@"hide_ads"]) {
             if (
                 ([obj isKindOfClass:%c(IGFeedItem)] && ([obj isSponsored] || [obj isSponsoredApp]))
+                || ([obj isKindOfClass:%c(IGMedia)] && (
+                    ([obj respondsToSelector:@selector(isMediaAd)] && [(IGMedia *)obj isMediaAd])
+                    || ([obj respondsToSelector:@selector(isChildOfAdItem)] && [(IGMedia *)obj isChildOfAdItem])
+                    || ([obj respondsToSelector:@selector(sponsoredPostInfo)] && [(IGMedia *)obj sponsoredPostInfo] != nil)
+                ))
                 || ([obj isKindOfClass:%c(IGDiscoveryGridItem)] && [[obj model] isKindOfClass:%c(IGAdItem)])
                 || [obj isKindOfClass:%c(IGAdItem)]
             ) {
@@ -144,6 +149,26 @@ static NSArray *removeItemsInList(NSArray *list, BOOL isFeed) {
     return filteredList;
 }
 %end
+// Instagram v454.1.0+ Swift-migrated IGSundialFeedDataSource
+%hook _TtC23IGSundialFeedDataSource23IGSundialFeedDataSource
+- (NSArray *)objectsForListAdapter:(id)arg1 {
+    NSArray *filteredList = removeItemsInList(%orig, NO);
+
+    if ([SCIUtils getBoolPref:@"prevent_doom_scrolling"]) {
+        double reelCount = [SCIUtils getDoublePref:@"doom_scrolling_reel_count"];
+        return [filteredList subarrayWithRange:NSMakeRange(0, MIN((NSUInteger)reelCount, filteredList.count))];
+    }
+
+    return filteredList;
+}
+- (void)adInsertionHandler:(id)arg1 shouldTryToInsertSponsoredItem:(id)arg2 atInsertionIndex:(NSInteger)arg3 focusedIndex:(NSInteger)arg4 insertionContext:(id)arg5 {
+    if ([SCIUtils getBoolPref:@"hide_ads"]) {
+        return;
+    }
+
+    %orig;
+}
+%end
 %hook IGContextualFeedViewController
 - (NSArray *)objectsForListAdapter:(id)arg1 {
     if ([SCIUtils getBoolPref:@"hide_ads"]) {
@@ -151,6 +176,23 @@ static NSArray *removeItemsInList(NSArray *list, BOOL isFeed) {
     }
 
     return %orig;
+}
+%end
+// Instagram v454.1.0+ Swift-migrated IGContextualFeedViewController
+%hook _TtC30IGContextualFeedViewController30IGContextualFeedViewController
+- (NSArray *)objectsForListAdapter:(id)arg1 {
+    if ([SCIUtils getBoolPref:@"hide_ads"]) {
+        return removeItemsInList(%orig, NO);
+    }
+
+    return %orig;
+}
+- (void)adInsertionHandler:(id)arg1 shouldTryToInsertSponsoredItem:(id)arg2 atInsertionIndex:(NSInteger)arg3 focusedIndex:(NSInteger)arg4 insertionContext:(id)arg5 {
+    if ([SCIUtils getBoolPref:@"hide_ads"]) {
+        return;
+    }
+
+    %orig;
 }
 %end
 %hook IGVideoFeedViewController
@@ -169,6 +211,23 @@ static NSArray *removeItemsInList(NSArray *list, BOOL isFeed) {
     }
 
     return %orig;
+}
+%end
+// Instagram v454.1.0+ Swift-migrated IGChainingFeedViewController
+%hook _TtC18IGPostChainingFeed28IGChainingFeedViewController
+- (NSArray *)objectsForListAdapter:(id)arg1 {
+    if ([SCIUtils getBoolPref:@"hide_ads"]) {
+        return removeItemsInList(%orig, NO);
+    }
+
+    return %orig;
+}
+- (void)adInsertionHandler:(id)arg1 shouldTryToInsertSponsoredItem:(id)arg2 atInsertionIndex:(NSInteger)arg3 focusedIndex:(NSInteger)arg4 insertionContext:(id)arg5 {
+    if ([SCIUtils getBoolPref:@"hide_ads"]) {
+        return;
+    }
+
+    %orig;
 }
 %end
 %hook IGStoryAdPool
@@ -193,6 +252,18 @@ static NSArray *removeItemsInList(NSArray *list, BOOL isFeed) {
     return %orig;
 }
 %end
+// Instagram v454.1.0+ Swift-migrated IGStoryAdsManager
+%hook _TtC17IGStoryAdsManager17IGStoryAdsManager
+- (id)initWithUserSession:(id)arg1 storyAdsManagerDelegate:(id)arg2 storyViewerLoggingContext:(id)arg3 sectionLoggingContext:(id)arg4 viewController:(id)arg5 storyViewerNavigator:(id)arg6 {
+    if ([SCIUtils getBoolPref:@"hide_ads"]) {
+        NSLog(@"[SCInsta] Removing ads");
+
+        return nil;
+    }
+
+    return %orig;
+}
+%end
 %hook IGStoryAdsFetcher
 - (id)initWithUserSession:(id)arg1 delegate:(id)arg2 {
     if ([SCIUtils getBoolPref:@"hide_ads"]) {
@@ -204,7 +275,7 @@ static NSArray *removeItemsInList(NSArray *list, BOOL isFeed) {
     return %orig;
 }
 %end
-// IG 148.0
+// IG 148.0+
 %hook IGStoryAdsResponseParser
 - (id)parsedObjectFromResponse:(id)arg1 {
     if ([SCIUtils getBoolPref:@"hide_ads"]) {
@@ -224,9 +295,30 @@ static NSArray *removeItemsInList(NSArray *list, BOOL isFeed) {
 
     return %orig;
 }
+- (id)initWithReelStore:(id)arg1 adPlatformToolbox:(id)arg2 {
+    if ([SCIUtils getBoolPref:@"hide_ads"]) {
+        NSLog(@"[SCInsta] Removing ads");
+
+        return nil;
+    }
+
+    return %orig;
+}
 %end
 %hook IGStoryAdsOptInTextView
 - (id)initWithBrandedContentStyledString:(id)arg1 sponsoredPostLabel:(id)arg2 {
+    if ([SCIUtils getBoolPref:@"hide_ads"]) {
+        NSLog(@"[SCInsta] Removing ads");
+
+        return nil;
+    }
+
+    return %orig;
+}
+%end
+// Instagram v454.1.0+ Swift-migrated IGStoryAdsOptInTextView
+%hook _TtC12IGStoryAdsUI23IGStoryAdsOptInTextView
+- (id)initWithBrandedContentStyledString:(id)arg1 sponsoredPostLabel:(id)arg2 adTransparencyDisclaimerStyledString:(id)arg3 {
     if ([SCIUtils getBoolPref:@"hide_ads"]) {
         NSLog(@"[SCInsta] Removing ads");
 
@@ -253,6 +345,15 @@ static NSArray *removeItemsInList(NSArray *list, BOOL isFeed) {
         return nil;
     }
     
+    return %orig;
+}
+- (id)initWithObjectMaps:(id)arg1 launcherSet:(id)arg2 adPlatformLevers:(id)arg3 {
+    if ([SCIUtils getBoolPref:@"hide_ads"]) {
+        NSLog(@"[SCInsta] Removing ads");
+
+        return nil;
+    }
+
     return %orig;
 }
 %end

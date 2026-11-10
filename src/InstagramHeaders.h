@@ -91,6 +91,9 @@
 @interface IGMedia : IGBaseMedia
 @property(readonly) IGVideo *video;
 @property(readonly) IGPhoto *photo;
+- (BOOL)isMediaAd;
+- (BOOL)isChildOfAdItem;
+- (id)sponsoredPostInfo;
 @end
 
 @interface IGPostItem : NSObject

@@ -51,6 +51,32 @@
     return [filteredObjs copy];
 }
 %end
+// Instagram v454.1.0+ Swift-migrated IGProfileHeaderView
+%hook _TtC15IGProfileHeader19IGProfileHeaderView
+- (id)objectsForListAdapter:(id)arg1 {
+    NSArray *originalObjs = %orig();
+    NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
+
+    for (id obj in originalObjs) {
+        BOOL shouldHide = NO;
+
+        if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
+            if ([obj isKindOfClass:%c(IGProfileChainingModel)]) {
+                NSLog(@"[SCInsta] Hiding suggested users: profile header");
+
+                shouldHide = YES;
+            }
+        }
+
+        // Populate new objs array
+        if (!shouldHide) {
+            [filteredObjs addObject:obj];
+        }
+    }
+
+    return [filteredObjs copy];
+}
+%end
 
 // Notifications/activity feed
 %hook IGActivityFeedViewController
@@ -259,5 +285,37 @@
     }
 
     return %orig(arg1, rows, allActions, overflowActions, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
+}
+- (id)initWithIdentifier:(id)arg1
+                    rows:(id)arg2
+     allActionsToDisplay:(id)arg3
+         overflowActions:(id)arg4
+    actionToBadgeInfoMap:(id)arg5
+      allBusinessActions:(id)arg6
+ overflowBusinessActions:(id)arg7
+     contactSheetActions:(id)arg8
+                    user:(id)arg9
+   sponsoredInfoProvider:(id)arg10
+  profileBackgroundColor:(id)arg11
+      isYourToolsEnabled:(_Bool)arg12
+{
+    NSArray *rows = arg2;
+    NSOrderedSet *allActions = [arg3 copy];
+    NSOrderedSet *overflowActions = [arg4 copy];
+
+    if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
+        NSPredicate *predicate = [NSPredicate predicateWithFormat:@"NOT (SELF IN %@)", @[ @(3) ]];
+        
+        allActions = [allActions filteredOrderedSetUsingPredicate:predicate];
+        overflowActions = [overflowActions filteredOrderedSetUsingPredicate:predicate];
+
+        NSMutableArray *filteredRows = [NSMutableArray new];
+        for (NSOrderedSet *set in rows) {
+            [filteredRows addObject:[set filteredOrderedSetUsingPredicate:predicate]];
+        }
+        rows = [filteredRows copy];
+    }
+
+    return %orig(arg1, rows, allActions, overflowActions, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
 }
 %end

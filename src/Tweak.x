@@ -25,6 +25,11 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
     // Default SCInsta config
     NSDictionary *sciDefaults = @{
         @"hide_ads": @(YES),
+        @"no_suggested_post": @(YES),
+        @"no_suggested_reels": @(YES),
+        @"no_suggested_account": @(YES),
+        @"no_suggested_users": @(YES),
+        @"hide_reels_tab": @(YES),
         @"copy_description": @(YES),
         @"detailed_color_picker": @(YES),
         @"remove_screenshot_alert": @(YES),
@@ -430,7 +435,7 @@ shouldPersistLastBugReportId:(id)arg6
         }
 
         // Hide notes tray
-        else if ([obj isKindOfClass:%c(IGDirectNotesTrayRowViewModel)]) {
+        else if ([obj isKindOfClass:%c(IGDirectNotesTrayRowViewModel)] || [obj isKindOfClass:%c(_TtC28IGDirectNotesViewModelsSwift29IGDirectNotesTrayRowViewModel)]) {
             if ([SCIUtils getBoolPref:@"hide_notes_tray"]) {
                 NSLog(@"[SCInsta] Hiding notes tray");
 
@@ -443,6 +448,45 @@ shouldPersistLastBugReportId:(id)arg6
             [filteredObjs addObject:obj];
         }
 
+    }
+
+    return [filteredObjs copy];
+}
+%end
+
+// Instagram v454.1.0+ Swift-migrated IGDirectInboxListAdapterDataSource
+%hook _TtC34IGDirectInboxListAdapterDataSource34IGDirectInboxListAdapterDataSource
+- (id)objectsForListAdapter:(id)arg1 {
+    NSArray *originalObjs = %orig();
+    NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
+
+    for (id obj in originalObjs) {
+        BOOL shouldHide = NO;
+
+        if ([obj isKindOfClass:%c(IGDirectInboxHeaderCellViewModel)]) {
+            if ([[obj title] isEqualToString:@"Suggestions"] || [[obj title] hasPrefix:@"Accounts to"]) {
+                if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
+                    shouldHide = YES;
+                }
+            }
+        }
+        else if ([obj isKindOfClass:%c(IGDirectInboxSuggestedThreadCellViewModel)] ||
+                 [obj isKindOfClass:%c(IGDiscoverPeopleItemConfiguration)] ||
+                 [obj isKindOfClass:%c(IGDiscoverPeopleConnectionItemConfiguration)]) {
+            if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
+                shouldHide = YES;
+            }
+        }
+        else if ([obj isKindOfClass:%c(IGDirectNotesTrayRowViewModel)] ||
+                 [obj isKindOfClass:%c(_TtC28IGDirectNotesViewModelsSwift29IGDirectNotesTrayRowViewModel)]) {
+            if ([SCIUtils getBoolPref:@"hide_notes_tray"]) {
+                shouldHide = YES;
+            }
+        }
+
+        if (!shouldHide) {
+            [filteredObjs addObject:obj];
+        }
     }
 
     return [filteredObjs copy];
@@ -482,7 +526,7 @@ shouldPersistLastBugReportId:(id)arg6
             }
 
             // Meta AI suggested search results
-            else if ([obj isKindOfClass:%c(IGSearchResultViewModel)]) {
+            else if ([obj isKindOfClass:%c(IGSearchResultViewModel)] || [obj isKindOfClass:%c(_TtC18IGSearchViewModels23IGSearchResultViewModel)]) {
 
                 // itemType 6 is meta ai suggestions
                 if ([obj itemType] == 6) {
@@ -539,6 +583,53 @@ shouldPersistLastBugReportId:(id)arg6
 }
 %end
 
+// Instagram v454.1.0+ Swift-migrated IGSearchListKitDataSource
+%hook _TtC15IGGenericSearch25IGSearchListKitDataSource
+- (id)objectsForListAdapter:(id)arg1 {
+    NSArray *originalObjs = %orig();
+    NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
+
+    for (id obj in originalObjs) {
+        BOOL shouldHide = NO;
+
+        if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
+            if ([obj isKindOfClass:%c(IGLabelItemViewModel)] && [[obj valueForKey:@"labelTitle"] isEqualToString:@"Ask Meta AI"]) {
+                shouldHide = YES;
+            }
+            else if ([obj isKindOfClass:%c(IGSearchNullStateUpsellViewModel)] || [obj isKindOfClass:%c(IGSearchResultNestedGroupViewModel)]) {
+                shouldHide = YES;
+            }
+            else if ([obj isKindOfClass:%c(IGSearchResultViewModel)] || [obj isKindOfClass:%c(_TtC18IGSearchViewModels23IGSearchResultViewModel)]) {
+                if ([obj respondsToSelector:@selector(itemType)] && [obj itemType] == 6) {
+                    shouldHide = YES;
+                }
+                else if ([obj respondsToSelector:@selector(title)] && [[[obj title] string] isEqualToString:@"meta.ai"]) {
+                    shouldHide = YES;
+                }
+            }
+        }
+
+        if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
+            if ([obj isKindOfClass:%c(IGLabelItemViewModel)] && [[obj valueForKey:@"labelTitle"] isEqualToString:@"Suggested for you"]) {
+                shouldHide = YES;
+            }
+            else if ([obj isKindOfClass:%c(IGDiscoverPeopleItemConfiguration)]) {
+                shouldHide = YES;
+            }
+            else if ([obj isKindOfClass:%c(IGSeeAllItemConfiguration)] && ((IGSeeAllItemConfiguration *)obj).destination == 4) {
+                shouldHide = YES;
+            }
+        }
+
+        if (!shouldHide) {
+            [filteredObjs addObject:obj];
+        }
+    }
+
+    return [filteredObjs copy];
+}
+%end
+
 // Story tray
 %hook IGMainStoryTrayDataSource
 - (id)allItemsForTrayUsingCachedValue:(BOOL)cached {
@@ -572,6 +663,42 @@ shouldPersistLastBugReportId:(id)arg6
         }
 
         // Populate new objs array
+        if (!shouldHide) {
+            [filteredObjs addObject:obj];
+        }
+    }
+
+    return [filteredObjs copy];
+}
+%end
+
+// Instagram v454.1.0+ Swift-migrated IGMainStoryTrayDataSource
+%hook _TtC25IGMainStoryTrayDataSource25IGMainStoryTrayDataSource
+- (id)allItemsForTrayUsingCachedValue:(BOOL)cached {
+    NSArray *originalObjs = %orig(cached);
+    NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
+
+    for (IGStoryTrayViewModel *obj in originalObjs) {
+        BOOL shouldHide = NO;
+
+        if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
+            if ([obj isKindOfClass:%c(IGStoryTrayViewModel)]) {
+                NSNumber *type = [((IGStoryTrayViewModel *)obj) valueForKey:@"type"];
+
+                if ([type isEqual:@(8)] || [type isEqual:@(9)]) {
+                    NSLog(@"[SCInsta] Hiding suggested users: story tray");
+                    shouldHide = YES;
+                }
+            }
+        }
+
+        if ([SCIUtils getBoolPref:@"hide_ads"]) {
+            if ([obj isKindOfClass:%c(IGStoryTrayViewModel)] && (obj.isUnseenNux == YES || [obj.pk isEqualToString:@"3538572169"])) {
+                NSLog(@"[SCInsta] Removing ads: story tray");
+                shouldHide = YES;
+            }
+        }
+
         if (!shouldHide) {
             [filteredObjs addObject:obj];
         }
