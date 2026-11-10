@@ -91,10 +91,48 @@
 }
 + (void)showSettingsVC:(UIWindow *)window {
     UIViewController *rootController = [window rootViewController];
-    SCISettingsViewController *settingsViewController = [SCISettingsViewController new];
+    if (!rootController && [window respondsToSelector:@selector(presentingViewController)]) {
+        rootController = [(IGWindow *)window presentingViewController];
+    }
+    if (!rootController) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if ([scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                for (UIWindow *win in windowScene.windows) {
+                    if (win.rootViewController && !win.isHidden) {
+                        rootController = win.rootViewController;
+                        if ([win isKindOfClass:objc_getClass("IGWindow")] || win.isKeyWindow) {
+                            break;
+                        }
+                    }
+                }
+            }
+            if (rootController) break;
+        }
+    }
+    if (!rootController) {
+        rootController = [UIApplication sharedApplication].keyWindow.rootViewController;
+    }
+    if (!rootController) return;
+
+    UIViewController *topVC = rootController;
+    while (topVC.presentedViewController) {
+        topVC = topVC.presentedViewController;
+    }
+
+    if ([topVC isKindOfClass:[UINavigationController class]] &&
+        [[(UINavigationController *)topVC viewControllers].firstObject isKindOfClass:[SCISettingsViewController class]]) {
+        return;
+    }
+    if ([topVC isKindOfClass:[SCISettingsViewController class]]) {
+        return;
+    }
+
+    SCISettingsViewController *settingsViewController = [[SCISettingsViewController alloc] init];
     UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:settingsViewController];
-    
-    [rootController presentViewController:navigationController animated:YES completion:nil];
+    navigationController.modalPresentationStyle = UIModalPresentationPageSheet;
+
+    [topVC presentViewController:navigationController animated:YES completion:nil];
 }
 
 // Colours

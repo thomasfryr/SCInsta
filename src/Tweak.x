@@ -117,42 +117,61 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 }
 %end
 
-// Disable sending modded insta bug reports
+// Disable sending modded insta bug reports & handle Shake gesture on IGWindow
+static NSTimeInterval lastSCIShakeTimestamp = 0;
+
+static void handleSCInstaShake(UIWindow *window) {
+    NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+    if (now - lastSCIShakeTimestamp < 0.75) return;
+    lastSCIShakeTimestamp = now;
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSLog(@"[SCInsta] Shake gesture detected, presenting SCISettingsViewController");
+        [SCIUtils showSettingsVC:window];
+    });
+}
+
 %hook IGWindow
 - (void)showDebugMenu {
     return;
 }
+- (void)showDebugMenuWithEntryPoint:(long long)arg1 {
+    return;
+}
+- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+    if (motion == UIEventSubtypeMotionShake) {
+        handleSCInstaShake(self);
+        return;
+    }
+    %orig;
+}
 %end
 
-// Global Shake Gesture to open SCInsta Settings (Instagram v454.1.0+ compatibility)
+%hook IGPassthroughWindow
+- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+    %orig;
+    if (motion == UIEventSubtypeMotionShake) {
+        handleSCInstaShake(self);
+    }
+}
+%end
+
+%hook FBApplication
+- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+    %orig;
+    if (motion == UIEventSubtypeMotionShake) {
+        handleSCInstaShake(nil);
+    }
+}
+%end
+
+// Fallback Shake Gesture on base UIWindow
 %hook UIWindow
 - (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
     %orig;
 
     if (motion == UIEventSubtypeMotionShake) {
-        UIViewController *topVC = self.rootViewController ?: [UIApplication sharedApplication].keyWindow.rootViewController;
-        while (topVC.presentedViewController) {
-            topVC = topVC.presentedViewController;
-        }
-
-        if (!topVC) return;
-
-        // Evitar presentar múltiples instancias si el menú de ajustes ya está abierto
-        if ([topVC isKindOfClass:[UINavigationController class]] &&
-            [[(UINavigationController *)topVC viewControllers].firstObject isKindOfClass:[SCISettingsViewController class]]) {
-            return;
-        }
-        if ([topVC isKindOfClass:[SCISettingsViewController class]]) {
-            return;
-        }
-
-        NSLog(@"[SCInsta] Shake gesture detected, presenting SCISettingsViewController");
-
-        SCISettingsViewController *settingsVC = [[SCISettingsViewController alloc] init];
-        UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:settingsVC];
-        navController.modalPresentationStyle = UIModalPresentationPageSheet;
-
-        [topVC presentViewController:navController animated:YES completion:nil];
+        handleSCInstaShake(self);
     }
 }
 %end

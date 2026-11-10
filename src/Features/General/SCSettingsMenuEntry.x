@@ -35,6 +35,23 @@
 %end
 */
 
+// Instagram v454.1.0+ Swift-migrated IGBadgedNavigationButton (3-bars button on profile)
+%hook _TtC19IGProfileNavigation24IGBadgedNavigationButton
+- (void)didMoveToWindow {
+    %orig;
+
+    if ([self.accessibilityIdentifier isEqualToString:@"profile-more-button"]) {
+        UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(sci_handleLongPress:)];
+        [self addGestureRecognizer:longPress];
+    }
+}
+%new - (void)sci_handleLongPress:(UILongPressGestureRecognizer *)sender {
+    if (sender.state != UIGestureRecognizerStateBegan) return;
+
+    [SCIUtils showSettingsVC:[self window]];
+}
+%end
+
 // Quick access to tweak settings by holding on home tab button
 %hook IGTabBarButton
 - (void)didMoveToSuperview {

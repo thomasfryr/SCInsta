@@ -230,6 +230,13 @@
 
 @interface IGWindow : UIWindow
 @property (nonatomic) __weak IGUserSession *userSession;
+- (UIViewController *)presentingViewController;
+@end
+
+@interface IGPassthroughWindow : UIWindow
+@end
+
+@interface FBApplication : UIApplication
 @end
 
 @interface IGShakeWindow : UIWindow
@@ -324,6 +331,10 @@
 
 @interface IGBadgedNavigationButton : UIView
 - (void)addLongPressGestureRecognizer; // new
+@end
+
+@interface _TtC19IGProfileNavigation24IGBadgedNavigationButton : UIView
+- (void)sci_handleLongPress:(UILongPressGestureRecognizer *)sender; // new
 @end
 
 @interface IGSearchBar : UIView
