@@ -2,6 +2,7 @@
 #import "InstagramHeaders.h"
 #import "Tweak.h"
 #import "Utils.h"
+#import "Settings/SCISettingsViewController.h"
 
 ///////////////////////////////////////////////////////////
 
@@ -115,6 +116,39 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 %hook IGWindow
 - (void)showDebugMenu {
     return;
+}
+%end
+
+// Global Shake Gesture to open SCInsta Settings (Instagram v454.1.0+ compatibility)
+%hook UIWindow
+- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+    %orig;
+
+    if (motion == UIEventSubtypeMotionShake) {
+        UIViewController *topVC = self.rootViewController ?: [UIApplication sharedApplication].keyWindow.rootViewController;
+        while (topVC.presentedViewController) {
+            topVC = topVC.presentedViewController;
+        }
+
+        if (!topVC) return;
+
+        // Evitar presentar múltiples instancias si el menú de ajustes ya está abierto
+        if ([topVC isKindOfClass:[UINavigationController class]] &&
+            [[(UINavigationController *)topVC viewControllers].firstObject isKindOfClass:[SCISettingsViewController class]]) {
+            return;
+        }
+        if ([topVC isKindOfClass:[SCISettingsViewController class]]) {
+            return;
+        }
+
+        NSLog(@"[SCInsta] Shake gesture detected, presenting SCISettingsViewController");
+
+        SCISettingsViewController *settingsVC = [[SCISettingsViewController alloc] init];
+        UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:settingsVC];
+        navController.modalPresentationStyle = UIModalPresentationPageSheet;
+
+        [topVC presentViewController:navController animated:YES completion:nil];
+    }
 }
 %end
 

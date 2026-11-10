@@ -1,7 +1,11 @@
 #import "../../InstagramHeaders.h"
 #import "../../Settings/SCISettingsViewController.h"
 
-// Show SCInsta tweak settings by holding on the settings/more icon under profile for ~1 second
+// [OBSOLETO en Instagram v454.1.0+]
+// Meta refactorizó la jerarquía de vistas del perfil y la barra de navegación,
+// por lo que IGBadgedNavigationButton ("profile-more-button") ya no se utiliza.
+// La apertura del menú se maneja ahora globalmente mediante Shake gesture en UIWindow (src/Tweak.x).
+/*
 %hook IGBadgedNavigationButton
 - (void)didMoveToWindow {
     %orig;
@@ -29,6 +33,7 @@
     [SCIUtils showSettingsVC:[self window]];
 }
 %end
+*/
 
 // Quick access to tweak settings by holding on home tab button
 %hook IGTabBarButton

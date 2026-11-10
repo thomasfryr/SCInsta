@@ -1,0 +1,153 @@
+name: Build and Release SCInsta (Sideload IPA)
+
+on:
+  workflow_dispatch:
+    inputs:
+      decrypted_instagram_url:
+        description: "URL directa al archivo IPA desencriptado de Instagram (opcional si existe en el repo)"
+        required: false
+        default: ""
+        type: string
+      decrypted_instagram_path:
+        description: "Ruta local en el repositorio al IPA desencriptado (usada si no se provee URL)"
+        required: false
+        default: "packages/com.burbn.instagram.ipa"
+        type: string
+      release_tag:
+        description: "Tag para el Release de GitHub (ej. v1.1.1-454.1.0). Si se omite se usa la versión de control"
+        required: false
+        default: ""
+        type: string
+      prerelease:
+        description: "Marcar el Release como pre-release"
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_sideload:
+    name: Build & Package SCInsta IPA
+    runs-on: macos-14
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository & Submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Build Dependencies (ldid, dpkg, make, wget)
+        run: |
+          brew install ldid dpkg make wget
+          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
+
+      - name: Setup Theos
+        uses: theos/action-setup-theos@v1
+        with:
+          sdks: 16.2
+
+      - name: Verify iOS 16.2 SDK & Pin Logos
+        run: |
+          # Ensure iPhoneOS16.2.sdk is present (fallback if action-setup-theos SDK mirror changes)
+          if [ ! -d "$THEOS/sdks/iPhoneOS16.2.sdk" ]; then
+            git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/xybp888/iOS-SDKs/ /tmp/iOS-SDKs
+            cd /tmp/iOS-SDKs
+            git sparse-checkout set --no-cone iPhoneOS16.2.sdk
+            git checkout
+            mv iPhoneOS16.2.sdk "$THEOS/sdks/"
+            cd "$GITHUB_WORKSPACE"
+          fi
+
+          # Pin Logos to commit prior to theos/logos#114 regression for inline %orig macros
+          cd "$THEOS/vendor/logos"
+          git fetch --depth=1 origin a62370066a97e36d59b200a9fa10c5091f5e8972
+          git checkout a62370066a97e36d59b200a9fa10c5091f5e8972
+
+      - name: Install IPA Injection Tools (cyan & ipapatch)
+        run: |
+          pip3 install --break-system-packages --force-reinstall https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip || \
+          pip3 install --force-reinstall https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
+
+          curl -fsSLo /usr/local/bin/ipapatch https://github.com/asdfzxcvbn/ipapatch/releases/download/v2.1.3/ipapatch.macos-arm64
+          chmod +x /usr/local/bin/ipapatch
+
+      - name: Prepare Decrypted Instagram Base IPA
+        env:
+          IPA_URL: ${{ inputs.decrypted_instagram_url }}
+          IPA_PATH: ${{ inputs.decrypted_instagram_path }}
+        run: |
+          mkdir -p packages
+
+          if [ -n "$IPA_URL" ]; then
+            echo "Descargando IPA base desde URL..."
+            curl -fL --retry 3 "$IPA_URL" -o packages/com.burbn.instagram.ipa
+          elif [ -n "$IPA_PATH" ] && [ -f "$IPA_PATH" ]; then
+            echo "Utilizando IPA base desde ruta local: $IPA_PATH"
+            if [ "$IPA_PATH" != "packages/com.burbn.instagram.ipa" ]; then
+              cp -f "$IPA_PATH" packages/com.burbn.instagram.ipa
+            fi
+          elif [ -f "packages/com.burbn.instagram.ipa" ]; then
+            echo "Utilizando packages/com.burbn.instagram.ipa existente."
+          else
+            echo "::error::No se proporcionó una URL válida ni se encontró el archivo packages/com.burbn.instagram.ipa"
+            exit 1
+          fi
+
+          ls -lh packages/com.burbn.instagram.ipa
+
+      - name: Extract Tweak Version Metadata
+        id: meta
+        env:
+          INPUT_TAG: ${{ inputs.release_tag }}
+        run: |
+          VERSION=$(awk '/^Version:/ {print $2}' control)
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="v${VERSION}"
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build SCInsta & Inject IPA (./build.sh sideload)
+        run: |
+          chmod +x build.sh
+          ./build.sh sideload
+
+          FINAL_IPA="packages/SCInsta_sideloaded_${{ steps.meta.outputs.tag }}.ipa"
+          mv -f packages/SCInsta-sideloaded.ipa "$FINAL_IPA"
+          echo "IPA_OUTPUT=$FINAL_IPA" >> "$GITHUB_ENV"
+          ls -lh "$FINAL_IPA"
+
+      - name: Upload IPA Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCInsta_sideloaded_${{ steps.meta.outputs.tag }}
+          path: ${{ env.IPA_OUTPUT }}
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: "SCInsta ${{ steps.meta.outputs.tag }} (Sideload IPA)"
+          body: |
+            ### SCInsta ${{ steps.meta.outputs.tag }}
+            - **Acceso a ajustes:** Agitar el dispositivo (**Shake gesture**) en cualquier pantalla de Instagram para abrir `SCISettingsViewController`.
+            - **Empaquetado:** Inyectado con `SCInsta.dylib` + `FLEXing` y parcheado para Sideloading (`Sideloadly` / certificados de desarrollador).
+          files: ${{ env.IPA_OUTPUT }}
+          draft: false
+          prerelease: ${{ inputs.prerelease || false }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
