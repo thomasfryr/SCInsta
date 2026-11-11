@@ -1,63 +1,17 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 
-// Dynamic build date cache to make the build always appear brand new
-static NSString *getFreshBuildDate(void) {
-    static NSString *cachedDate = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-        formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
-        formatter.timeZone = [NSTimeZone timeZoneWithAbbreviation:@"UTC"];
-        formatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss";
-        cachedDate = [formatter stringFromDate:[NSDate date]];
-    });
-    return cachedDate;
-}
+// Local UI-only hooks to prevent TestFlight / Dogfooding nag modals from appearing on screen.
+// Does NOT modify NSBundle, Info.plist, receipts, or any network/telemetry data sent to Meta.
 
-// 1. Spoof App Store Receipt & CFBuildDate so Instagram believes it's a freshly compiled App Store release
-%hook NSBundle
-- (NSURL *)appStoreReceiptURL {
-    NSURL *url = %orig;
-    if (url && [[url lastPathComponent] isEqualToString:@"sandboxReceipt"]) {
-        return [[url URLByDeletingLastPathComponent] URLByAppendingPathComponent:@"receipt"];
-    }
-    return url;
-}
-
-- (id)objectForInfoDictionaryKey:(NSString *)key {
-    if ([key isEqualToString:@"CFBuildDate"]) {
-        return getFreshBuildDate();
-    }
-    return %orig;
-}
-
-- (NSDictionary *)infoDictionary {
-    NSDictionary *dict = %orig;
-    if (dict && dict[@"CFBuildDate"]) {
-        NSMutableDictionary *mDict = [dict mutableCopy];
-        mDict[@"CFBuildDate"] = getFreshBuildDate();
-        return mDict;
-    }
-    return dict;
-}
-%end
-
-// 2. Disable TestFlight metric reporting
-%hook _TtC16METAAppleMetrics21METAAppleMetricReport
-- (BOOL)isTestFlightApp {
-    return NO;
-}
-%end
-
-// 3. Disable TestFlight Update Nag Controller
+// 1. Prevent TestFlight Update Nag Controller from initializing its local alert
 %hook IGTestFlightUpdateNagController
 - (id)initWithAnalyticsLogger:(id)arg1 initWithLauncherSet:(id)arg2 userDefaults:(id)arg3 {
     return nil;
 }
 %end
 
-// 4. Auto-dismiss TestFlight Nudge View Controller if ever initialized
+// 2. Auto-dismiss TestFlight Nudge View Controller if ever presented locally
 %hook _TtC29IGCoreRootTestFlightNagPlugin35TestFlightUpdateNudgeViewController
 - (void)viewDidLoad {
     %orig;
@@ -69,7 +23,7 @@ static NSString *getFreshBuildDate(void) {
 }
 %end
 
-// 5. Bypass Dogfooding expiration coordinator & production lockout
+// 3. Prevent local Dogfooding expiration modal coordinator from triggering lockout UI
 %hook _TtC17IGDogfoodingFirst26DogfoodingFirstCoordinator
 - (void)didBeginSessionWithMainAppViewController:(id)arg1 pandoGraphQLService:(id)arg2 dogfooder:(id)arg3 {
     return;
@@ -86,7 +40,7 @@ static NSString *getFreshBuildDate(void) {
 }
 %end
 
-// 6. Silence Dogfooder Prod update checks
+// 4. Disable local in-app update prompt checks
 %hook IGDogfooderProd
 - (void)checkAvailableAppUpdatesWithCompletion:(id)completion {
     return;
