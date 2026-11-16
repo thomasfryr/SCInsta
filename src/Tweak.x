@@ -97,6 +97,18 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
         [[objc_getClass("FLEXManager") sharedManager] showExplorer];
     }
 }
+
+- (_Bool)application:(UIApplication *)application openURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options {
+    if (url && [[url.scheme lowercaseString] isEqualToString:@"scinsta"]) {
+        NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
+        components.scheme = @"instagram";
+        if (components.URL) {
+            NSLog(@"[SCInsta] Routing custom URL scheme %@ -> %@", url.absoluteString, components.URL.absoluteString);
+            url = components.URL;
+        }
+    }
+    return %orig(application, url, options);
+}
 %end
 
 %hook IGDSLauncherConfig

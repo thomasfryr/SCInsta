@@ -5,8 +5,8 @@ set -e
 CMAKE_OSX_ARCHITECTURES="arm64e;arm64"
 CMAKE_OSX_SYSROOT="iphoneos"
 
-# Prerequisites
-if [ -z "$(ls -A modules/FLEXing)" ]; then
+# Prerequisites (only required when building with --dev)
+if [ "$2" == "--dev" ] && [ -z "$(ls -A modules/FLEXing)" ]; then
     echo -e '\033[1m\033[0;31mFLEXing submodule not found.\nPlease run the following command to checkout submodules:\n\n\033[0m    git submodule update --init --recursive'
     exit 1
 fi
@@ -35,12 +35,17 @@ then
         MAKEARGS='DEV=1'
         FLEXPATH='packages/cache/FLEXing.dylib packages/cache/libflex.dylib'
         COMPRESSION=0
+    elif [ "$2" == "--buildonly" ];
+    then
+        MAKEARGS='DEV=1'
+        FLEXPATH=''
+        COMPRESSION=0
     else
-        # Clear cached FLEX libs
+        # Production sideload build: exclude debug libraries (FLEXing.dylib / libflex.dylib)
         rm -rf "packages/cache"
 
         MAKEARGS='SIDELOAD=1'
-        FLEXPATH='.theos/obj/debug/FLEXing.dylib .theos/obj/debug/libflex.dylib'
+        FLEXPATH=''
         COMPRESSION=9
     fi
 
@@ -76,7 +81,15 @@ then
     # Create IPA File
     echo -e '\033[1m\033[32mCreating the IPA file...\033[0m'
     rm -f packages/SCInsta-sideloaded.ipa
-    cyan -i "packages/${ipaFile}" -o packages/SCInsta-sideloaded.ipa -f $SCINSTAPATH $FLEXPATH -c $COMPRESSION -m 15.0 -du
+
+    # Detect cyan plist merge flag (-l in pyzule-rw v1.4+, -p in legacy wrappers)
+    if cyan --help 2>&1 | grep -q -- "-l plist"; then
+        CYAN_PLIST_FLAG="-l"
+    else
+        CYAN_PLIST_FLAG="-p"
+    fi
+
+    cyan -i "packages/${ipaFile}" -o packages/SCInsta-sideloaded.ipa -f $SCINSTAPATH $FLEXPATH $CYAN_PLIST_FLAG url_scheme.plist -b com.scinsta.app -c $COMPRESSION -m 15.0 -due
     
     # Patch IPA for sideloading
     ipapatch --input "packages/SCInsta-sideloaded.ipa" --inplace --noconfirm

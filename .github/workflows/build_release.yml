@@ -165,7 +165,7 @@ jobs:
           body: |
             ### SCInsta ${{ steps.meta.outputs.tag }}
             - **Acceso a ajustes:** Agitar el dispositivo (**Shake gesture**) en cualquier pantalla de Instagram para abrir `SCISettingsViewController`.
-            - **Empaquetado:** Inyectado con `SCInsta.dylib` + `FLEXing` y parcheado para Sideloading (`Sideloadly` / certificados de desarrollador).
+            - **Empaquetado Dual + Deep Link:** Bundle ID secundario (`com.scinsta.app`) con spoofing nativo de `NSBundle` (`com.burbn.instagram`), esquema URL propio (`scinsta://`), sin `PlugIns` ni librerías `FLEX` de depuración (100% compatible con `AltServer-Linux` y `Sideloadly`).
           files: ${{ env.IPA_OUTPUT }}
           draft: false
           prerelease: ${{ inputs.prerelease || false }}
