@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <Security/Security.h>
-#import <substrate.h>
+#import <dlfcn.h>
+#import "../../fishhook.h"
 
 // Spoof mainBundle bundleIdentifier to "com.burbn.instagram" so that Meta's
 // internal Direct Messaging engine (igd.mdcore.orchestrator), Keychain access,
@@ -92,8 +93,15 @@ static OSStatus hook_SecItemDelete(CFDictionaryRef query) {
 
 %ctor {
     %init;
-    MSHookFunction((void *)&SecItemCopyMatching, (void *)&hook_SecItemCopyMatching, (void **)&orig_SecItemCopyMatching);
-    MSHookFunction((void *)&SecItemAdd, (void *)&hook_SecItemAdd, (void **)&orig_SecItemAdd);
-    MSHookFunction((void *)&SecItemUpdate, (void *)&hook_SecItemUpdate, (void **)&orig_SecItemUpdate);
-    MSHookFunction((void *)&SecItemDelete, (void *)&hook_SecItemDelete, (void **)&orig_SecItemDelete);
+    orig_SecItemCopyMatching = (OSStatus (*)(CFDictionaryRef, CFTypeRef *))dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
+    orig_SecItemAdd = (OSStatus (*)(CFDictionaryRef, CFTypeRef *))dlsym(RTLD_DEFAULT, "SecItemAdd");
+    orig_SecItemUpdate = (OSStatus (*)(CFDictionaryRef, CFDictionaryRef))dlsym(RTLD_DEFAULT, "SecItemUpdate");
+    orig_SecItemDelete = (OSStatus (*)(CFDictionaryRef))dlsym(RTLD_DEFAULT, "SecItemDelete");
+    struct rebinding rebindings[] = {
+        {"SecItemCopyMatching", (void *)hook_SecItemCopyMatching, (void **)&orig_SecItemCopyMatching},
+        {"SecItemAdd",          (void *)hook_SecItemAdd,          (void **)&orig_SecItemAdd},
+        {"SecItemUpdate",       (void *)hook_SecItemUpdate,       (void **)&orig_SecItemUpdate},
+        {"SecItemDelete",       (void *)hook_SecItemDelete,       (void **)&orig_SecItemDelete}
+    };
+    rebind_symbols(rebindings, 4);
 }

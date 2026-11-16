@@ -16,11 +16,12 @@ Sistema desacoplado de 4 módulos diseñado para ejecutar **SCInsta** (Instagram
 ### 1. Hooks Nativos de Estabilidad y Spoofing (`BundleSpoof.xm`)
 Compilado síncronamente dentro de `SCInsta.dylib` (enlazando `Security.framework` en `Makefile`) para eliminar condiciones de carrera al arrancar y evitar crashes en `igd.mdcore.orchestrator` bajo certificados gratuitos de 7 días:
 - **Spoofing de `NSBundle`:** Interceptar `- (NSString *)bundleIdentifier` en `NSBundle`. Cuando `self == [NSBundle mainBundle]`, retornar explícitamente `@"com.burbn.instagram"`; para cualquier otro bundle delegar en `%orig`. Esto permite que `MobileConfig` descargue los activos de interfaz (íconos de barra inferior) correctamente desde el primer milisegundo.
-- **Sanitización de Keychain (`Security.framework` vía `MSHookFunction` en `%ctor`):**
+- **Sanitización de Keychain (`Security.framework` vía `fishhook` `rebind_symbols` en `%ctor`):**
+  - En dispositivos sin jailbreak (*sideloaded*), `MSHookFunction` sobre funciones del `dyld_shared_cache` provoca `EXC_BAD_ACCESS / SIGKILL (CODESIGNING: Invalid Page)`. Por ello se utiliza `fishhook` (`src/fishhook.h` y `src/fishhook.c`, incluidos en `$(TWEAK_NAME)_FILES` de `Makefile`) para reescribir punteros únicamente en las secciones escribibles `__DATA` / `__DATA_CONST` (`__la_symbol_ptr` y `__nl_symbol_ptr`).
   - Interceptar `SecItemCopyMatching`, `SecItemAdd`, `SecItemUpdate` y `SecItemDelete`.
   - Crear una copia mutable (`CFDictionaryCreateMutableCopy`) de los diccionarios de consulta/atributos cuando contengan `kSecAttrAccessGroup`, eliminar `kSecAttrAccessGroup` para redirigir al Keychain privado local de `com.scinsta.app` (permitido en firmas gratuitas), invocar la función original y liberar memoria con `CFRelease`.
   - En `SecItemCopyMatching`, si `status == errSecSuccess` pero `*result == NULL` o `*result == kCFNull`, limpiar `*result = NULL` y retornar `errSecItemNotFound` (`-25300`) para evitar el crash `-[... length]: unrecognized selector` en `String._unconditionallyBridgeFromObjectiveC` dentro de `igd.mdcore.orchestrator`.
-  - Ejecutar explícitamente `%init` dentro de `%ctor` junto con los 4 `MSHookFunction`.
+  - Ejecutar explícitamente `%init` dentro de `%ctor` junto con `rebind_symbols(rebindings, 4)`.
 
 ### 2. Normalización Interna de Deep Links (`Tweak.x`)
 - En `%hook IGInstagramAppDelegate`, interceptar `application:openURL:options:`.

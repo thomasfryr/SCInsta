@@ -9,7 +9,7 @@
 
 | Módulo | Directorio Objetivo | Contratos Asociados | Estado | Bloqueos / Observaciones |
 | :--- | :--- | :--- | :--- | :--- |
-| **Módulo 0** | `/SCInsta` (Raíz del repo) | Contrato A, Contrato D | ✅ Auditado / Pushed | `git push origin main` completado. |
+| **Módulo 0** | `/SCInsta` (Raíz del repo) | Contrato A, Contrato D | ✅ Auditado / Pushed | Migración a `fishhook` (`rebind_symbols`) completada y subida a `main`. |
 | **Fase 1** | `/ios-signer/setup-debian-infra.sh` | Base Debian Server | ✅ Auditado / Pushed | Script de aprovisionamiento Debian validado. |
 | **Módulo 1** | `/push-server` | Contrato A, Contrato B | ✅ Auditado / Pushed | `server.js`, `sw.js`, `manifest.json`, `index.html` y servicios `systemd` auditados. |
 | **Módulo 2** | `/dm-listener` | Contrato B, Contrato C | ✅ Auditado / Pushed | `listener.js`, plantillas JSON y `scinsta-listener.service` auditados. |
@@ -21,16 +21,14 @@
 **Contratos aplicables:** `Contrato A`, `Contrato D`
 
 - [x] Hook nativo `%hook NSBundle` (`-bundleIdentifier` -> `@"com.burbn.instagram"` para `mainBundle`) en [`src/Features/General/BundleSpoof.xm`](./src/Features/General/BundleSpoof.xm).
-- [x] Interceptores `MSHookFunction` en `%ctor` (`SecItemCopyMatching`, `SecItemAdd`, `SecItemUpdate`, `SecItemDelete`) en [`src/Features/General/BundleSpoof.xm`](./src/Features/General/BundleSpoof.xm):
+- [x] Migración de interceptores Keychain de `MSHookFunction` a **`fishhook` (`rebind_symbols`)** en [`src/Features/General/BundleSpoof.xm`](./src/Features/General/BundleSpoof.xm) + [`src/fishhook.h`](./src/fishhook.h) / [`src/fishhook.c`](./src/fishhook.c) para evitar `EXC_BAD_ACCESS / SIGKILL (CODESIGNING: Invalid Page)` en dispositivos sin jailbreak:
   - Eliminación dinámica de `kSecAttrAccessGroup` mediante `CFDictionaryCreateMutableCopy` para redirigir al Keychain privado local de `com.scinsta.app`.
   - Sanitización en `SecItemCopyMatching` cuando `status == errSecSuccess` pero `*result` es `NULL` o `kCFNull` (retornando `errSecItemNotFound` para evitar crash en `igd.mdcore.orchestrator` / `String._unconditionallyBridgeFromObjectiveC`).
+  - Pre-resolución con `dlsym(RTLD_DEFAULT, ...)` para evitar punteros `__stub_helper` intermedios.
 - [x] Normalización en memoria `scinsta://` -> `instagram://` en `IGInstagramAppDelegate` (`-application:openURL:options:`) en [`src/Tweak.x`](./src/Tweak.x).
-- [x] Actualización de [`build.sh`](./build.sh) y [`Makefile`](./Makefile):
-  - `Security` incluido en `SCInsta_FRAMEWORKS`.
-  - Exclusión de `FLEXing.dylib` / `libflex.dylib` en modo producción (`./build.sh sideload` sin `--dev`).
-  - Limpieza de `PlugIns` con flag `-due`, Bundle ID `-b com.scinsta.app` e inyección de `url_scheme.plist`.
+- [x] Actualización de [`Makefile`](./Makefile) para compilar `src/fishhook.c` (`-iname \*.c` en `$(TWEAK_NAME)_FILES`).
 - [x] Creación y validación de [`url_scheme.plist`](./url_scheme.plist) en la raíz del repositorio (`CFBundleURLName = com.scinsta.urlscheme`, `CFBundleTypeRole = Editor`, `CFBundleURLSchemes = ["scinsta"]`).
-- **Estado:** ✅ **Auditado por el Orquestador — Listo para compilar y probar en dispositivo.**
+- **Estado:** ✅ **Auditado por el Orquestador — Subido a `origin/main` para compilación en GitHub Actions.**
 
 ---
 
