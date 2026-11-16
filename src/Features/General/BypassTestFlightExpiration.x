@@ -1,6 +1,12 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 
+@interface _TtC29IGCoreRootTestFlightNagPlugin35TestFlightUpdateNudgeViewController : UIViewController
+@end
+
+@interface _TtC17IGDogfoodingFirst41DogfoodingProductionLockoutViewController : UIViewController
+@end
+
 // Local UI-only hooks to prevent TestFlight / Dogfooding nag modals from appearing on screen.
 // Does NOT modify NSBundle, Info.plist, receipts, or any network/telemetry data sent to Meta.
 

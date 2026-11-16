@@ -528,6 +528,9 @@
 - (void)applySCICustomTheme:(NSString *)target; // new
 @end
 
+@interface IGDirectRealtimeIrisThreadDelta : NSObject
+@end
+
 @interface IGDirectThreadThemePickerOption : NSObject
 @end
 
