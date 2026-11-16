@@ -1,0 +1,17 @@
+[Unit]
+Description=SCInsta Cloudflare HTTPS Tunnel for Safari iOS Web Push
+After=network-online.target scinsta-push.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scinsta
+WorkingDirectory=/home/scinsta/scinsta-infra/push-server
+ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:3000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

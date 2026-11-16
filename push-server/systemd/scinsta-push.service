@@ -1,0 +1,18 @@
+[Unit]
+Description=SCInsta Web Push Server (Node.js / Express)
+After=network.target
+
+[Service]
+Type=simple
+User=scinsta
+WorkingDirectory=/home/scinsta/scinsta-infra/push-server
+EnvironmentFile=/home/scinsta/scinsta-infra/push-server/.env
+Environment=PORT=3000
+ExecStart=/usr/bin/node /home/scinsta/scinsta-infra/push-server/server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

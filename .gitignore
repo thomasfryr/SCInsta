@@ -55,3 +55,15 @@ livecontainer
 
 src/**/wip.x
 src/**/wip.xm
+
+# SCInsta Infra (push-server, dm-listener, ios-signer)
+**/node_modules/
+**/.env
+ios-signer/signer.env
+ios-signer/*.ipa
+ios-signer/*.log
+push-server/subscriptions.json
+dm-listener/cookies.json
+dm-listener/users_cache.json
+dm-listener/whitelist.json
+dm-listener/muted_threads.json

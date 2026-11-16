@@ -1,0 +1,20 @@
+[Unit]
+Description=SCInsta Passive DM Listener (Playwright Headless MQTT/WebSocket)
+After=network-online.target scinsta-push.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scinsta
+WorkingDirectory=/home/scinsta/scinsta-infra/dm-listener
+EnvironmentFile=/home/scinsta/scinsta-infra/dm-listener/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /home/scinsta/scinsta-infra/dm-listener/listener.js
+Restart=always
+RestartSec=15
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scinsta-listener
+
+[Install]
+WantedBy=multi-user.target

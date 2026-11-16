@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="SCInsta Push">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <title>SCInsta Notifier</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #000000;
+      color: #f5f5f5;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .card {
+      width: 100%;
+      max-width: 380px;
+      border: 1px solid #1f1f1f;
+      border-radius: 16px;
+      padding: 28px 24px;
+      background-color: #080808;
+    }
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 0.875rem;
+      color: #8e8e93;
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+    .steps {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .step {
+      padding: 14px 16px;
+      border-radius: 12px;
+      background-color: #111111;
+      border: 1px solid #1c1c1e;
+      font-size: 0.9rem;
+      line-height: 1.45;
+      color: #e5e5ea;
+    }
+    .step strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    button {
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 1px solid #2c2c2e;
+      background-color: #ffffff;
+      color: #000000;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    button:active {
+      opacity: 0.75;
+    }
+    button:disabled {
+      background-color: #1c1c1e;
+      color: #636366;
+      border-color: #1c1c1e;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 16px;
+      font-size: 0.825rem;
+      color: #8e8e93;
+      text-align: center;
+      min-height: 1.2em;
+      line-height: 1.4;
+    }
+    #status.ok {
+      color: #30d158;
+    }
+    #status.error {
+      color: #ff453a;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>SCInsta Notifier</h1>
+    <p class="subtitle">Puente Calm Tech de notificaciones directas para iOS.</p>
+
+    <ul class="steps">
+      <li class="step">
+        <strong>1. Compartir &gt; Agregar a pantalla de inicio</strong>
+        En Safari iOS, toca el botón Compartir y añade esta Web App a tu pantalla de inicio antes de continuar.
+      </li>
+      <li class="step">
+        <strong>2. Activar notificaciones</strong>
+        Abre la app instalada desde tu pantalla de inicio y pulsa el botón inferior para vincular Web Push.
+      </li>
+    </ul>
+
+    <button id="subscribe-btn" type="button">Activar notificaciones</button>
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <script>
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    const btn = document.getElementById('subscribe-btn');
+    const statusEl = document.getElementById('status');
+
+    function setStatus(message, type = '') {
+      statusEl.textContent = message;
+      statusEl.className = type;
+    }
+
+    btn.addEventListener('click', async () => {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+        setStatus('Abre esta página desde el ícono instalado en tu pantalla de inicio (iOS 16.4+).', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      setStatus('Solicitando permiso...');
+
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          setStatus('Permiso de notificaciones denegado.', 'error');
+          btn.disabled = false;
+          return;
+        }
+
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.ready;
+
+        const keyRes = await fetch('/api/vapid-public-key');
+        const { publicKey } = await keyRes.json();
+
+        if (!publicKey) {
+          throw new Error('Llave VAPID pública no disponible en el servidor.');
+        }
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey)
+        });
+
+        const subRes = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(subscription)
+        });
+
+        if (!subRes.ok) {
+          throw new Error('Error registrando suscripción en el servidor.');
+        }
+
+        setStatus('Notificaciones activas. Toca cualquier alerta para abrir SCInsta.', 'ok');
+        btn.textContent = 'Notificaciones vinculadas';
+      } catch (err) {
+        setStatus(err.message || 'Error al activar notificaciones.', 'error');
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "scinsta-dm-listener",
+  "version": "1.0.0",
+  "description": "Módulo 2 SCInsta: Agente Playwright headless pasivo para escucha de DMs vía WebSocket/MQTT sin llamadas HTTP activas a Meta",
+  "main": "listener.js",
+  "scripts": {
+    "start": "node listener.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.48.0"
+  }
+}
