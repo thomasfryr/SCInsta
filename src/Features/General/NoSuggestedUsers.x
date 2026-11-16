@@ -24,6 +24,17 @@
     return %orig;
 } 
 %end
+%hook _TtC17IGSuggestionsUnit26IGSuggestionsUnitViewModel
+- (id)init {
+    if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
+        NSLog(@"[SCInsta] Hiding suggested users: main feed welcome section");
+
+        return nil;
+    }
+
+    return %orig;
+}
+%end
 
 // Suggested users in profile header
 %hook IGProfileHeaderView

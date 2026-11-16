@@ -12,13 +12,20 @@
     }
 }
 
-- (void)setScrollEnabled:(BOOL)arg1 {
+    - (void)setScrollEnabled:(BOOL)arg1 {
     if ([SCIUtils getBoolPref:@"disable_scrolling_reels"]) {
         NSLog(@"[SCInsta] Disabling scrolling reels");
         
         return %orig(NO);
     }
 
+    return %orig;
+}
+
+- (BOOL)isScrollEnabled {
+    if ([SCIUtils getBoolPref:@"disable_scrolling_reels"]) {
+        return NO;
+    }
     return %orig;
 }
 %end
@@ -32,5 +39,19 @@
     else {
         %orig(enabled);
     }
+}
+- (void)setUserEnabled:(BOOL)enabled {
+    if ([SCIUtils getBoolPref:@"disable_scrolling_reels"]) {
+        %orig(NO);
+    }
+    else {
+        %orig(enabled);
+    }
+}
+- (BOOL)isEnabled {
+    if ([SCIUtils getBoolPref:@"disable_scrolling_reels"]) {
+        return NO;
+    }
+    return %orig;
 }
 %end

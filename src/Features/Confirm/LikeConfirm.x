@@ -31,6 +31,9 @@
 - (void)_onLikeButtonPressed:(id)arg1 {
     CONFIRMPOSTLIKE(%orig);
 }
+- (void)_onLikeButtonPressed {
+    CONFIRMPOSTLIKE(%orig);
+}
 %end
 %hook IGFeedPhotoView
 - (void)_onDoubleTap:(id)arg1 {
@@ -39,6 +42,11 @@
 %end
 %hook IGVideoPlayerOverlayContainerView
 - (void)_handleDoubleTapGesture:(id)arg1 {
+    CONFIRMPOSTLIKE(%orig);
+}
+%end
+%hook _TtC25IGModernFeedVideoOverlays33IGVideoPlayerOverlayContainerView
+- (void)handleDoubleTapGesture:(id)arg1 {
     CONFIRMPOSTLIKE(%orig);
 }
 %end
@@ -120,6 +128,37 @@
     if (!likeButton) return;
 
     // 129115 = L(12) I(9) K(11) E(5)
+    static NSInteger kOverlayTag = 129115;
+    if ([likeButton viewWithTag:kOverlayTag]) return;
+
+    UIButton *overlay = [UIButton buttonWithType:UIButtonTypeCustom];
+    overlay.tag = kOverlayTag;
+    overlay.frame = likeButton.bounds;
+    overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [overlay addTarget:self action:@selector(overlayTapped:) forControlEvents:UIControlEventTouchUpInside];
+    [likeButton addSubview:overlay];
+}
+
+%new - (void)overlayTapped:(UIButton *)overlay {
+    UIButton *likeButton = (UIButton *)overlay.superview;
+
+    [SCIUtils showConfirmation:^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [likeButton sendActionsForControlEvents:UIControlEventTouchUpInside];
+        });
+    }];
+}
+%end
+
+%hook _TtC20IGStoryDefaultFooter34IGStoryFullscreenDefaultFooterView
+- (void)layoutSubviews {
+    %orig;
+
+    if (![SCIUtils getBoolPref:@"like_confirm"]) return;
+
+    UIButton *likeButton = [self valueForKey:@"likeButton"];
+    if (!likeButton) return;
+
     static NSInteger kOverlayTag = 129115;
     if ([likeButton viewWithTag:kOverlayTag]) return;
 

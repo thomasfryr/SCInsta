@@ -48,10 +48,10 @@ static void initDownloaders () {
 
         photo = MSHookIvar<IGPhoto *>(_configuration, "_photo");
     }
-    else if ([self.delegate isKindOfClass:%c(IGFeedItemPagePhotoCell)]) {
-        IGFeedItemPagePhotoCell *pagePhotoCell = self.delegate;
+    else if ([self.delegate isKindOfClass:%c(IGFeedItemPagePhotoCell)] || [self.delegate isKindOfClass:%c(_TtC18IGFeedItemPageCell23IGFeedItemPagePhotoCell)]) {
+        IGPostItem *pagePhotoPost = [self.delegate valueForKey:@"pagePhotoPost"];
 
-        photo = pagePhotoCell.pagePhotoPost.photo;
+        photo = pagePhotoPost.photo;
     }
 
     NSURL *photoUrl = [SCIUtils getPhotoUrl:photo];
@@ -134,6 +134,45 @@ static void initDownloaders () {
     if (sender.state != UIGestureRecognizerStateBegan) return;
 
     IGPhoto *_photo = MSHookIvar<IGPhoto *>(self, "_photo");
+
+    NSURL *photoUrl = [SCIUtils getPhotoUrl:_photo];
+    if (!photoUrl) {
+        [SCIUtils showErrorHUDWithDescription:@"Could not extract photo url from reel"];
+
+        return;
+    }
+
+    // Download image & show in share menu
+    initDownloaders();
+    [imageDownloadDelegate downloadFileWithURL:photoUrl
+                                 fileExtension:[[photoUrl lastPathComponent]pathExtension]
+                                      hudLabel:nil];
+}
+%end
+
+%hook _TtC32IGSundialViewerMediaDisplayViews24IGSundialViewerPhotoView
+- (void)didMoveToSuperview {
+    %orig;
+
+    if ([SCIUtils getBoolPref:@"dw_reels"]) {
+        [self addLongPressGestureRecognizer];
+    }
+
+    return;
+}
+%new - (void)addLongPressGestureRecognizer {
+    NSLog(@"[SCInsta] Adding reels photo download long press gesture recognizer");
+
+    UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
+    longPress.minimumPressDuration = [SCIUtils getDoublePref:@"dw_finger_duration"];
+    longPress.numberOfTouchesRequired = [SCIUtils getDoublePref:@"dw_finger_count"];
+
+    [self addGestureRecognizer:longPress];
+}
+%new - (void)handleLongPress:(UILongPressGestureRecognizer *)sender {
+    if (sender.state != UIGestureRecognizerStateBegan) return;
+
+    IGPhoto *_photo = [self respondsToSelector:@selector(currentPhoto)] ? [self currentPhoto] : MSHookIvar<IGPhoto *>(self, "photo");
 
     NSURL *photoUrl = [SCIUtils getPhotoUrl:_photo];
     if (!photoUrl) {
@@ -268,7 +307,7 @@ static void initDownloaders () {
 }
 %end
 
-// Download story (videos, legacy)
+// Download story (videos, legacy & v455+)
 %hook IGStoryVideoView
 - (void)didMoveToSuperview {
     %orig;
@@ -293,9 +332,16 @@ static void initDownloaders () {
 
     NSURL *videoUrl;
 
-    IGStoryFullscreenSectionController *captionDelegate = self.captionDelegate;
-    if (captionDelegate) {
-        videoUrl = [SCIUtils getVideoUrlForMedia:captionDelegate.currentStoryItem];
+    if ([self respondsToSelector:@selector(item)] && self.item) {
+        videoUrl = [SCIUtils getVideoUrlForMedia:self.item];
+    }
+    else if (self.captionDelegate) {
+        IGStoryFullscreenSectionController *captionDelegate = self.captionDelegate;
+        if ([captionDelegate respondsToSelector:@selector(currentStoryItem)]) {
+            videoUrl = [SCIUtils getVideoUrlForMedia:captionDelegate.currentStoryItem];
+        } else {
+            videoUrl = [SCIUtils getVideoUrlForMedia:[captionDelegate valueForKey:@"storyItem"]];
+        }
     }
     else {
         // Direct messages video player

@@ -15,10 +15,11 @@
 %hook _TtC29IGCoreRootTestFlightNagPlugin35TestFlightUpdateNudgeViewController
 - (void)viewDidLoad {
     %orig;
+    self.view.hidden = YES;
     [self dismissViewControllerAnimated:NO completion:nil];
 }
 - (void)viewDidAppear:(BOOL)animated {
-    %orig;
+    self.view.hidden = YES;
     [self dismissViewControllerAnimated:NO completion:nil];
 }
 %end
@@ -36,7 +37,31 @@
 %hook _TtC17IGDogfoodingFirst41DogfoodingProductionLockoutViewController
 - (void)viewDidLoad {
     %orig;
+    self.view.hidden = YES;
     [self dismissViewControllerAnimated:NO completion:nil];
+}
+- (void)viewDidAppear:(BOOL)animated {
+    self.view.hidden = YES;
+    [self dismissViewControllerAnimated:NO completion:nil];
+}
+%end
+
+// Prevent UIViewController from presenting TestFlight / Dogfooding nag view controllers or alerts
+%hook UIViewController
+- (void)presentViewController:(UIViewController *)viewControllerToPresent animated:(BOOL)flag completion:(void (^)(void))completion {
+    NSString *vcClassName = NSStringFromClass([viewControllerToPresent class]);
+    if ([vcClassName containsString:@"TestFlightUpdateNudgeViewController"] ||
+        [vcClassName containsString:@"DogfoodingProductionLockoutViewController"]) {
+        return;
+    }
+    if ([viewControllerToPresent isKindOfClass:[UIAlertController class]]) {
+        UIAlertController *alert = (UIAlertController *)viewControllerToPresent;
+        if ([alert.title isEqualToString:@"TestFlight Update Available"] ||
+            [alert.title isEqualToString:@"It's time to update Instagram Beta"]) {
+            return;
+        }
+    }
+    %orig;
 }
 %end
 

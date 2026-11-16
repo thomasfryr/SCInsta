@@ -103,6 +103,29 @@
 }
 %end
 
+%hook _TtC33IGDirectInboxNavigationHeaderView33IGDirectInboxNavigationHeaderView
+- (id)initWithFrame:(CGRect)arg1
+              title:(id)arg2
+          titleView:(id)arg3
+  directInboxConfig:(IGDirectInboxConfig *)config
+        userSession:(id)arg5
+    loggingDelegate:(id)arg6
+{
+    if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
+        NSLog(@"[SCInsta] Hiding meta ai: suggested ai chats in direct inbox header");
+
+        @try {
+            [config setValue:0 forKey:@"shouldShowAIChatsEntrypointButton"];
+        }
+        @catch (NSException *exception) {
+            NSLog(@"[SCInsta] WARNING: %@\n\nFull object: %@", exception.reason, config);
+        }
+    }
+
+    return %orig(arg1, arg2, arg3, [config copy], arg5, arg6);
+}
+%end
+
 // Meta AI "imagine" in media picker
 %hook IGDirectMediaPickerViewController
 - (id)initWithUserSession:(id)arg1
@@ -129,6 +152,33 @@
     }
 
     return %orig(arg1, [config copy], arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+}
+- (id)initWithUserSession:(id)arg1
+                   config:(IGDirectMediaPickerConfig *)config
+             capabilities:(id)arg3
+           threadMetadata:(id)arg4
+            messageSender:(id)arg5
+   cutoutOptimisticSender:(id)arg6
+cutoutStickerFactorySender:(id)arg7
+    threadAnalyticsLogger:(id)arg8
+     multimodalPerfLogger:(id)arg9
+     localSendSpeedLogger:(id)arg10
+   sendAttributionFactory:(id)arg11
+{
+    if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
+        NSLog(@"[SCInsta] Hiding meta ai: imagine tile in media picker");
+
+        @try {
+            IGDirectMediaPickerGalleryConfig *galleryConfig = [config valueForKey:@"galleryConfig"];
+
+            [galleryConfig setValue:0 forKey:@"isImagineEntryPointEnabled"];
+        }
+        @catch (NSException *exception) {
+            NSLog(@"[SCInsta] WARNING: %@\n\nFull object: %@", exception.reason, config);
+        }
+    }
+
+    return %orig(arg1, [config copy], arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
 }
 %end
 
@@ -165,6 +215,52 @@
         NSLog(@"[SCInsta] Hiding meta ai: reconfiguring direct composer");
 
         // writeWithAIEnabled
+        @try {
+            [config setValue:0 forKey:@"writeWithAIEnabled"];
+        }
+        @catch (NSException *exception) {
+            NSLog(@"[SCInsta] WARNING: %@\n\nFull object: %@", exception.reason, config);
+        }
+
+    }
+
+    return [config copy];
+}
+%end
+
+%hook _TtC16IGDirectComposer16IGDirectComposer
+- (id)initWithLayoutSpecProvider:(id)arg1
+                     userSession:(id)arg2
+                    mobileConfig:(id)arg3
+                          config:(IGDirectComposerConfig *)config
+                           style:(id)arg5
+                            text:(id)arg6
+{
+    return %orig(arg1, arg2, arg3, [self patchConfig:config], arg5, arg6);
+}
+
+- (id)initWithLayoutSpecProvider:(id)arg1
+                     userSession:(id)arg2
+                    mobileConfig:(id)arg3
+                          config:(IGDirectComposerConfig *)config
+                           style:(id)arg5
+                            text:(id)arg6
+           shouldUpdateModeLater:(BOOL)arg7
+{
+    return %orig(arg1, arg2, arg3, [self patchConfig:config], arg5, arg6, arg7);
+}
+
+- (void)setConfig:(IGDirectComposerConfig *)config {
+    %orig([self patchConfig:config]);
+
+    return;
+}
+
+%new - (IGDirectComposerConfig *)patchConfig:(IGDirectComposerConfig *)config {
+    if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
+
+        NSLog(@"[SCInsta] Hiding meta ai: reconfiguring direct composer");
+
         @try {
             [config setValue:0 forKey:@"writeWithAIEnabled"];
         }
@@ -223,6 +319,22 @@
 {
     // 31: Restyle
     // 41: Make AI image
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"NOT (SELF IN %@)", @[ @(31), @(41) ]];
+    NSArray *newOptions = [options filteredArrayUsingPredicate:predicate];
+
+    return %orig([newOptions copy], arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
+}
++ (id)menuConfigurationWithEligibleOptions:(id)options
+                          messageViewModel:(id)arg2
+                               contentType:(id)arg3
+                                 isSticker:(_Bool)arg4
+                            isMusicSticker:(_Bool)arg5
+                          directNuxManager:(id)arg6
+                       sessionUserDefaults:(id)arg7
+                              mobileConfig:(id)arg8
+                               userSession:(id)arg9
+                                tapHandler:(id)arg10
+{
     NSPredicate *predicate = [NSPredicate predicateWithFormat:@"NOT (SELF IN %@)", @[ @(31), @(41) ]];
     NSArray *newOptions = [options filteredArrayUsingPredicate:predicate];
 
@@ -292,6 +404,13 @@
 %hook IGDirectThreadViewMetaAISummaryFeatureController
 - (id)initWithUserSession:(id)arg1 mutableStateProvider:(id)arg2 threadViewControllerFeatureDelegate:(id)arg3 presentingViewController:(id)arg4 {
     return nil;
+}
+%end
+
+%hook _TtC48IGDirectThreadViewMetaAISummaryFeatureController48IGDirectThreadViewMetaAISummaryFeatureController
+- (id)initWithUserSession:(id)arg1 stateProvider:(id)arg2 threadViewControllerFeatureDelegate:(id)arg3 presenting:(id)arg4 {
+    if ([SCIUtils getBoolPref:@"hide_meta_ai"]) return nil;
+    return %orig;
 }
 %end
 
@@ -368,6 +487,15 @@
 
     return %orig;
 }
+- (id)initWithLauncherSet:(id)arg1 hasSearchPrefix:(BOOL)arg2 floatsAsCenteredPill:(BOOL)arg3 {
+    if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
+        NSLog(@"[SCInsta] Hiding meta ai: suggested ai searches comment carousel");
+
+        return nil;
+    }
+
+    return %orig;
+}
 %end
 
 /////////////////////////////////////////////////////////////////////////////
@@ -397,6 +525,12 @@
 %hook IGCreationTextToolView
 - (id)initWithMenuConfiguration:(unsigned long long)configuration userSession:(id)session creationEntryPoint:(long long)point isAIFontsEnabled:(_Bool)enabled genAINuxManager:(id)manager showFontBadge:(_Bool)badge {
     return %orig(configuration, session, point, [SCIUtils getBoolPref:@"hide_meta_ai"] ? false : enabled, manager, badge);
+}
+%end
+
+%hook _TtC30IGStoryPostCaptureTextControls22IGCreationTextToolView
+- (id)initWithMenuConfiguration:(unsigned long long)configuration launcherSet:(id)launcherSet creationEntryPoint:(long long)point isAIFontsEnabled:(_Bool)enabled genAINuxManager:(id)manager showFontBadge:(_Bool)badge {
+    return %orig(configuration, launcherSet, point, [SCIUtils getBoolPref:@"hide_meta_ai"] ? false : enabled, manager, badge);
 }
 %end
 

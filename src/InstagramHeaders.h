@@ -181,6 +181,7 @@
 @end
 
 @interface IGStoryVideoView : UIView
+@property (nonatomic, readonly) IGMedia *item;
 @property (nonatomic, weak, readwrite) IGStoryFullscreenSectionController *captionDelegate;
 
 - (void)addLongPressGestureRecognizer; // new
@@ -488,6 +489,43 @@
 @end
 
 @interface IGStoryFullscreenDefaultFooterView : NSObject
+@end
+
+@interface _TtC20IGStoryDefaultFooter34IGStoryFullscreenDefaultFooterView : UIView
+@end
+
+@interface _TtC11IGFollowing18IGFollowController : NSObject
+@end
+
+@interface _TtC18IGFeedItemPageCell23IGFeedItemPagePhotoCell : UICollectionViewCell
+@property (nonatomic, strong) id post;
+@property (nonatomic, strong) IGPostItem *pagePhotoPost;
+@end
+
+@interface _TtC32IGSundialViewerMediaDisplayViews24IGSundialViewerPhotoView : UIView
+- (IGPhoto *)currentPhoto;
+- (void)addLongPressGestureRecognizer; // new
+@end
+
+@interface _TtC26IGSundialViewerVerticalUFI26IGSundialViewerVerticalUFI : UIView
+- (void)didTapLikeButton;
+- (void)didTapRepostButton;
+@end
+
+@interface _TtC33IGSundialViewerNavigationBarSwift28IGSundialViewerNavigationBar : UIView
+@end
+
+@interface _TtC16IGDirectComposer16IGDirectComposer : UIView
+- (NSObject *)patchConfig:(NSObject *)config; // new
+@end
+
+@interface _TtC26IGNotesBubbleCreationSwift41IGDirectNotesBubbleEditorColorPaletteView : UIView
+@property (nonatomic, copy) UIColor *backgroundColor; // new
+@property (nonatomic, copy) UIColor *textColor; // new
+@property (nonatomic, copy) NSString *emojiText; // new
+
+- (void)presentColorPicker:(NSString *)target; // new
+- (void)applySCICustomTheme:(NSString *)target; // new
 @end
 
 @interface IGDirectThreadThemePickerOption : NSObject

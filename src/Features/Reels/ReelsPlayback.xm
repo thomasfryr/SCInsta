@@ -50,6 +50,26 @@
         return %orig(arg1, arg2);
     }
 }
+- (void)triggerPullToRefresh {
+    if ([SCIUtils getBoolPref:@"prevent_doom_scrolling"]) {
+        IGRefreshControl *refreshControl = [self valueForKey:@"refreshControl"];
+        if (refreshControl) [self refreshControlDidEndFinishLoadingAnimation:refreshControl];
+        return;
+    }
+
+    if ([SCIUtils getBoolPref:@"refresh_reel_confirm"]) {
+        NSLog(@"[SCInsta] Reel refresh triggered");
+
+        [SCIUtils showConfirmation:^(void) { %orig; }
+                     cancelHandler:^(void) {
+                         IGRefreshControl *refreshControl = [self valueForKey:@"refreshControl"];
+                         if (refreshControl) [self refreshControlDidEndFinishLoadingAnimation:refreshControl];
+                     }
+                             title:@"Refresh Reels"];
+    } else {
+        return %orig;
+    }
+}
 %end
 
 // * Disable volume/mute button triggering unmutes
@@ -67,6 +87,11 @@
 - (void)_didUnplugHeadphones:(id)headphones {
     if (![SCIUtils getBoolPref:@"disable_auto_unmuting_reels"]) {
         %orig(headphones);
+    }
+}
+- (void)_didUnplugHeadphones {
+    if (![SCIUtils getBoolPref:@"disable_auto_unmuting_reels"]) {
+        %orig;
     }
 }
 %end

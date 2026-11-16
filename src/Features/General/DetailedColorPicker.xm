@@ -59,6 +59,7 @@
     }
     else if (
         [presentingVC isKindOfClass:%c(IGStoryCreationDrawingViewController)]
+        || [presentingVC isKindOfClass:%c(_TtC25IGStoryPostCaptureDrawing36IGStoryCreationDrawingViewController)]
         || [presentingVC isKindOfClass:%c(IGDirectThreadViewDrawingViewController)]
     ) {
         [presentingVC drawingControls:nil didSelectColor:color];
@@ -79,6 +80,13 @@
 
         if (_eyedropperToggleButton != nil) {
             [_eyedropperToggleButton setPushedDown:NO];
+        }
+    }
+    else if ([colorPickingControls isKindOfClass:%c(_TtC33IGStoryPostCaptureDrawingControls27IGStoryColorPickingControls)]) {
+        IGStoryEyedropperToggleButton *eyedropperToggleButton = [colorPickingControls valueForKey:@"eyedropperToggleButton"];
+
+        if (eyedropperToggleButton != nil) {
+            [eyedropperToggleButton setPushedDown:NO];
         }
     }
 

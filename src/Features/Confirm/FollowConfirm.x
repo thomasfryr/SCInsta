@@ -31,6 +31,18 @@
 }
 %end
 
+%hook _TtC11IGFollowing18IGFollowController
+- (void)tryToggleFriendship {
+    IGUser *user = [self valueForKey:@"_user"];
+    if (!user || user.followStatus == 2) {
+        CONFIRMFOLLOW(%orig);
+    }
+    else {
+        return %orig;
+    }
+}
+%end
+
 // Follow button on discover people page
 %hook IGDiscoverPeopleButtonGroupView
 - (void)_onFollowButtonTapped:(id)arg1 {
@@ -39,11 +51,17 @@
 - (void)_onFollowingButtonTapped:(id)arg1 {
     CONFIRMFOLLOW(%orig);
 }
+- (void)followController:(id)arg1 buttonWasTappedWithAction:(NSInteger)arg2 {
+    CONFIRMFOLLOW(%orig);
+}
 %end
 
 // Suggested for you (home feed & profile) follow button
 %hook IGHScrollAYMFCell
 - (void)_didTapAYMFActionButton {
+    CONFIRMFOLLOW(%orig);
+}
+- (void)_didTapAYMFActionButton:(id)arg1 {
     CONFIRMFOLLOW(%orig);
 }
 %end

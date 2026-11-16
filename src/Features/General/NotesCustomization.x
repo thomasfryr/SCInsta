@@ -2,6 +2,31 @@
 
 static char targetStaticRef[] = "target";
 
+static void enableNotesFeatureSupport(IGNotesCreationFeatureSupportModel *support) {
+    if (![SCIUtils getBoolPref:@"enable_notes_customization"]) return;
+
+    @try {
+        [support setValue:@(YES) forKey:@"enableAnimatedEmojisInCreation"];
+    }
+    @catch (NSException *exception) {
+        NSLog(@"[SCInsta] WARNING: %@\n\nFull object: %@", exception.reason, support);
+    }
+
+    @try {
+        [support setValue:@(YES) forKey:@"enableBubbleCustomization"];
+    }
+    @catch (NSException *exception) {
+        NSLog(@"[SCInsta] WARNING: %@\n\nFull object: %@", exception.reason, support);
+    }
+
+    @try {
+        [support setValue:@(YES) forKey:@"enableRandomThemeGenerator"];
+    }
+    @catch (NSException *exception) {
+        NSLog(@"[SCInsta] WARNING: %@\n\nFull object: %@", exception.reason, support);
+    }
+}
+
 %hook IGDirectNotesCreationView
 - (id)initWithViewModel:(id)model
          featureSupport:(IGNotesCreationFeatureSupportModel *)support
@@ -11,34 +36,21 @@ static char targetStaticRef[] = "target";
              layoutType:(long long)type
             userSession:(id)session
 {
-    if ([SCIUtils getBoolPref:@"enable_notes_customization"]) {
+    enableNotesFeatureSupport(support);
+    return %orig(model, support, animation, listener, delegate, type, session);
+}
+%end
 
-        // enableAnimatedEmojisInCreation
-        @try {
-            [support setValue:@(YES) forKey:@"enableAnimatedEmojisInCreation"];
-        }
-        @catch (NSException *exception) {
-            NSLog(@"[SCInsta] WARNING: %@\n\nFull object: %@", exception.reason, support);
-        }
-
-        // enableBubbleCustomization
-        @try {
-            [support setValue:@(YES) forKey:@"enableBubbleCustomization"];
-        }
-        @catch (NSException *exception) {
-            NSLog(@"[SCInsta] WARNING: %@\n\nFull object: %@", exception.reason, support);
-        }
-
-        // enableRandomThemeGenerator
-        @try {
-            [support setValue:@(YES) forKey:@"enableRandomThemeGenerator"];
-        }
-        @catch (NSException *exception) {
-            NSLog(@"[SCInsta] WARNING: %@\n\nFull object: %@", exception.reason, support);
-        }
-        
-    }
-
+%hook _TtC25IGDirectNotesCreationView25IGDirectNotesCreationView
+- (id)initWithViewModel:(id)model
+         featureSupport:(IGNotesCreationFeatureSupportModel *)support
+  presentationAnimation:(id)animation
+ composerUpdateListener:(id)listener
+               delegate:(id)delegate
+             layoutType:(long long)type
+            userSession:(id)session
+{
+    enableNotesFeatureSupport(support);
     return %orig(model, support, animation, listener, delegate, type, session);
 }
 %end

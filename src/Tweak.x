@@ -186,6 +186,15 @@ shouldPersistLastBugReportId:(id)arg6
 {
     return nil;
 }
+- (id)initWithNetworker:(id)arg1
+         pandoGraphQLService:(id)arg2
+                userDefaults:(id)arg3
+                 launcherSet:(id)arg4
+shouldPersistLastBugReportId:(_Bool)arg5
+        pendingQueueProvider:(id)arg6
+{
+    return nil;
+}
 %end
 
 // Disable anti-screenshot feature on visual messages
@@ -198,8 +207,16 @@ shouldPersistLastBugReportId:(id)arg6
 - (id)visualMessageViewerController:(id)arg1 didDetectScreenshotForVisualMessage:(id)arg2 atIndex:(NSInteger)arg3 { NONVOID_HANDLESCREENSHOT(%orig); }
 %end
 
+%hook _TtC34IGDirectVisualMessageViewerSession34IGDirectVisualMessageViewerSession
+- (void)visualMessageViewerController:(id)arg1 didDetectScreenshotForVisualMessage:(id)arg2 atIndex:(NSInteger)arg3 { VOID_HANDLESCREENSHOT(%orig); }
+%end
+
 %hook IGDirectVisualMessageReplayService
 - (id)visualMessageViewerController:(id)arg1 didDetectScreenshotForVisualMessage:(id)arg2 atIndex:(NSInteger)arg3 { NONVOID_HANDLESCREENSHOT(%orig); }
+%end
+
+%hook _TtC31IGDirectVisualMessageServiceKit34IGDirectVisualMessageReplayService
+- (void)visualMessageViewerController:(id)arg1 didDetectScreenshotForVisualMessage:(id)arg2 atIndex:(NSInteger)arg3 { VOID_HANDLESCREENSHOT(%orig); }
 %end
 
 %hook IGDirectVisualMessageReportService
@@ -227,6 +244,11 @@ shouldPersistLastBugReportId:(id)arg6
 %end
 
 %hook IGDirectMediaViewerViewController
+- (void)screenshotObserverDidSeeScreenshotTaken:(id)arg1 { VOID_HANDLESCREENSHOT(%orig); }
+- (void)screenshotObserverDidSeeActiveScreenCapture:(id)arg1 event:(NSInteger)arg2 { VOID_HANDLESCREENSHOT(%orig); }
+%end
+
+%hook _TtC27IGDirectMediaViewerKitSwift33IGDirectMediaViewerViewController
 - (void)screenshotObserverDidSeeScreenshotTaken:(id)arg1 { VOID_HANDLESCREENSHOT(%orig); }
 - (void)screenshotObserverDidSeeActiveScreenCapture:(id)arg1 event:(NSInteger)arg2 { VOID_HANDLESCREENSHOT(%orig); }
 %end
@@ -847,6 +869,48 @@ shouldPersistLastBugReportId:(id)arg6
 }
 
 - (void)_didLongPressRepostButton:(id)arg1 {
+    if ([SCIUtils getBoolPref:@"repost_confirm"]) {
+        NSLog(@"[SCInsta] Confirm repost triggered (long press ignored)");
+    }
+    else {
+        return %orig;
+    }
+}
+%end
+
+%hook _TtC26IGSundialViewerVerticalUFI26IGSundialViewerVerticalUFI
+- (void)didTapLikeButton {
+    if ([SCIUtils getBoolPref:@"like_confirm_reels"]) {
+        NSLog(@"[SCInsta] Confirm reels like triggered");
+
+        [SCIUtils showConfirmation:^(void) { %orig; }];
+    }
+    else {
+        return %orig;
+    }
+}
+
+- (void)didLongPressLikeButton:(id)arg1 {
+    if ([SCIUtils getBoolPref:@"like_confirm_reels"]) {
+        NSLog(@"[SCInsta] Confirm repost triggered (long press ignored)");
+    }
+    else {
+        return %orig;
+    }
+}
+
+- (void)didTapRepostButton {
+    if ([SCIUtils getBoolPref:@"repost_confirm"]) {
+        NSLog(@"[SCInsta] Confirm repost triggered");
+
+        [SCIUtils showConfirmation:^(void) { %orig; }];
+    }
+    else {
+        return %orig;
+    }
+}
+
+- (void)didLongPressRepostButton:(id)arg1 {
     if ([SCIUtils getBoolPref:@"repost_confirm"]) {
         NSLog(@"[SCInsta] Confirm repost triggered (long press ignored)");
     }
